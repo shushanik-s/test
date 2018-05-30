@@ -38,8 +38,18 @@ class Router
 
     public static function dispatch($url) {
         if(self::matchRoute($url)) {
-            $controler = self::$route['controller'];
-            echo "OK";
+            $controller = self::$route['controller'];
+            if(class_exists($controller)) {
+                $cObj = new $controller;
+                $action = self::$route['action'];
+                if (method_exists($cObj, $action)) {
+                    $cObj->$action();
+                } else {
+                    echo "Method not found.";
+                }
+            } else {
+                echo "Controller not found.";
+            }
         } else {
             http_response_code(404);
             include '404.html';
