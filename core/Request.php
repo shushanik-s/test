@@ -1,14 +1,33 @@
 <?php
-
+include 'Parameter.php';
+include 'Header.php';
 class Request
 {
-    public $request;
-    public $query;
-    public $files;
-    public $headers;
-    public $server;
-    public $method;
-    public $parameters;
+    protected $parameters;
+    protected $request;
+    protected $query;
+    protected $headers;
+    protected $content;
+    protected $requestUri;
+    protected $baseUrl;
+    protected $method;
+    protected $server;
+
+    public function __construct(array $query = array(), array $request = array(), array $attributes = array(), array $cookies = array(), array $files = array(), array $server = array(), $content = null)
+    {
+        $this->initialize($query, $request, $content);
+    }
+
+    private function initialize(array $query = array(), array $request = array(), $content = null)
+    {
+        $this->request = new Parameter($request);
+        $this->query = new Parameter($query);
+        $this->headers = new Header();
+        $this->content = $content;
+        $this->requestUri = null;
+        $this->baseUrl = null;
+        $this->method = null;
+    }
 
     public function getMethod() {
         return $_SERVER['REQUEST_METHOD'];
@@ -19,20 +38,13 @@ class Request
     }
 
     public function header($key = null, $default = null) {
-        return $this->retrieveItem('headers', $key, $default);
-    }
-
-    protected function retrieveItem($source, $key, $default) {
         if (is_null($key)) {
-            return $this->$source->all();
+            return $default ? $this->headers[$default] : $this->headers->all();
         }
-
-        return $this->$source->get($key, $default);
+        return $this->headers[$key];
     }
 
     public function hasHeader($key) {
         return ! is_null($this->header($key));
     }
-
-
 }
