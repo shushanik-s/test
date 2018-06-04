@@ -154,4 +154,58 @@ class Request
             }
         }
     }
+
+    public function parse_form_data($formData, &$header)
+    {
+        $endOfFirstLine = strpos($formData, "\r\n");
+        $boundary = substr($formData, 0, $endOfFirstLine);
+        // Split form-data into each entry
+        $parts = explode($boundary, $formData);
+        $return = [];
+        $header = [];
+        // Remove first and last (null) entries
+        array_shift($parts);
+        array_pop($parts);
+        foreach ($parts as $part) {
+            $endOfHead = strpos($part, "\r\n\r\n");
+            $startOfBody = $endOfHead + 4;
+            $head = substr($part, 2, $endOfHead - 2);
+            $body = substr($part, $startOfBody, -2);
+            $headerParts = preg_split('#; |\r\n#', $head);
+            $key = null;
+            $thisHeader = [];
+            // Parse the mini headers,
+            // obtain the key
+            foreach ($headerParts as $headerPart) {
+                if (preg_match('#(.*)(=|: )(.*)#', $headerPart, $keyVal)) {
+                    if ($keyVal[1] == "name") $key = substr($keyVal[3], 1, -1);
+                    else {
+                        if($keyVal[2] == "="){
+                            $thisHeader[$keyVal[1]] = substr($keyVal[3], 1, -1);
+                        }else{
+                            $thisHeader[$keyVal[1]] = $keyVal[3];
+                        }
+                    }
+                }
+            }
+
+            if (isset($thisHeader['filename'])) {
+                $filename = tempnam(sys_get_temp_dir(), "php");
+                file_put_contents($filename, $body);
+                $return[$key] = [
+                    "name" => $thisHeader['filename'],
+                    "type" => $thisHeader['Content-Type'],
+                    "tmp_name" => $filename,
+                    "error" => 0,
+                    "size" => count($body)
+                ];
+            } else {
+                $return[$key] = $body;
+            }
+            $return[$key] = $body;
+            $header[$key] = $thisHeader;
+
+        }
+        return $return;
+    }
 }
