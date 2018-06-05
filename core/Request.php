@@ -1,6 +1,9 @@
 <?php
+//namespace core;
+//
+//use Header;
+//use Parameter;
 
-use Header;
 include 'functions.php';
 
 class Request
@@ -8,11 +11,12 @@ class Request
     protected $parameters;
     protected $request;
     protected $query;
-    protected $headers;
+    public $headers;
     protected $content;
     protected $requestUri;
     protected $baseUrl;
     protected $method;
+    protected $rawData;
     protected static $httpMethodParameterOverride = false;
 
     public function __construct(array $query = array(), array $request = array(), $content = null)
@@ -22,24 +26,24 @@ class Request
 
     private function initialize(array $query = array(), array $request = array(), $content = null)
     {
-        $this->request = new Parameter($request);
-        $this->query = new Parameter($query);
+        $this->request = $_REQUEST;
+        $this->query   = new Parameter($query);
         $this->headers = new Header();
         $this->content = $content;
-        $this->method = null;
+        $this->method  = null;
     }
 
     public function all()
     {
-        return $this->request->all();
+        return $this->request;
     }
 
     public function header($key = null, $default = null)
     {
         if (is_null($key)) {
-            return $default ? $this->headers[$default] : $this->headers->all();
+            return $default ? $this->headers->headers[$default] : $this->headers;
         }
-        return $this->headers[$key];
+        return $this->headers->headers[$key];
     }
 
     public function hasHeader($key)
@@ -71,7 +75,8 @@ class Request
 
     public function input($key = null, $default = null)
     {
-        return data_get($this->request, $key, $default);
+
+        return data_get($_REQUEST, $key, $default);
     }
 
     public static function normalizeQueryString($qs)
@@ -118,11 +123,6 @@ class Request
         return '' === $qs ? null : $qs;
     }
 
-    public function isJson()
-    {
-        return contains($this->header('CONTENT_TYPE'), ['/json', '+json']);
-    }
-
     public function contains($haystack, $needles)
     {
         foreach ((array)$needles as $needle) {
@@ -133,36 +133,44 @@ class Request
 
         return false;
     }
+    public function isJson()
+    {
+        $needles = ['/json', '+json'];
+        foreach ((array)$needles as $needle) {
+            if ($needle != '' && mb_strpos($this->header('content-type')[0], $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
 
     public function getContent()
     {
-        if ($this->header(['CONTENT_TYPE']) == 'application/json') {
-            $this->content = json_decode(file_get_contents('php://input'));
-        } elseif ($this->header(['CONTENT_TYPE']) == 'application/x-www-form-urlencoded') {
-            switch ($this->getMethod()) {
-                case 'get':
-                    $this->content = $_GET;
-                    break;
-                case 'post':
-                    $this->content = $_POST;
-                    break;
-                case 'put':
-                case 'delete':
-                    parse_str(file_get_contents("php://input"), $this->content);
-                    $this->content = json_decode(json_encode($this->content));
-                    break;
+        $this->rawData = file_get_contents('php://input');
+        if ($this->header('content-type')[0] == 'application/json') {
+            $this->content = array_merge(json_decode($this->rawData), $this->rawData);
+        } elseif ($this->header('content-type')[0] == 'application/x-www-form-urlencoded') {
+            parse_str(file_get_contents("php://input"), $this->content);
+            $this->content = array_merge(json_decode($this->rawData), $this->rawData);
+        } elseif (strpos($this->header('content-type')[0], 'multipart/form-data') !== false) {
+            if($this->rawData) {
+                $this->content = $this->parseFormData($this->rawData);
             }
         }
+
+        return $this->content;
     }
 
-    public function parse_form_data($formData, &$header)
+    public function parseFormData($formData)
     {
         $endOfFirstLine = strpos($formData, "\r\n");
         $boundary = substr($formData, 0, $endOfFirstLine);
         // Split form-data into each entry
         $parts = explode($boundary, $formData);
         $return = [];
-        $header = [];
         // Remove first and last (null) entries
         array_shift($parts);
         array_pop($parts);
@@ -197,14 +205,11 @@ class Request
                     "type" => $thisHeader['Content-Type'],
                     "tmp_name" => $filename,
                     "error" => 0,
-                    "size" => count($body)
                 ];
             } else {
                 $return[$key] = $body;
             }
             $return[$key] = $body;
-            $header[$key] = $thisHeader;
-
         }
         return $return;
     }

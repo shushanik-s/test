@@ -2,7 +2,7 @@
 
 class Header
 {
-    protected $headers = [];
+    public $headers = [];
 
     public function __construct()
     {
