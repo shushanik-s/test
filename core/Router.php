@@ -2,79 +2,64 @@
 
 class Router
 {
+    public static $methods = ['GET', 'POST', 'PUT', 'DELETE'];
     protected $routes = [];
-    protected $namedRoutes = [];
-    protected $currentRequest;
-    public static $verbs = ['GET', 'POST', 'PUT', 'DELETE'];
+    protected static $validators = [];
 
-    public function __construct()
+    public static function get($uri, $action = null)
     {
-        $this->routes = new RouteCollection;
+        return self::add('GET', $uri, $action);
     }
 
-    public function get($uri, $action = null)
+    public static function post($uri, $action = null)
     {
-        return $this->addRoute(['GET', 'HEAD'], $uri, $action);
+        return self::add('POST', $uri, $action);
     }
 
-    public function post($uri, $action = null)
+    public static function put($uri, $action = null)
     {
-        return $this->addRoute('POST', $uri, $action);
+        return self::add('PUT', $uri, $action);
     }
 
-    public function put($uri, $action = null)
+    public static function delete($uri, $action = null)
     {
-        return $this->addRoute('PUT', $uri, $action);
+        return self::add('DELETE', $uri, $action);
     }
 
-    public function delete($uri, $action = null)
+    protected static function add($method, $uri, $action)
     {
-        return $this->addRoute('DELETE', $uri, $action);
+        $route = [
+            'uri' => $uri,
+            'method' => $method,
+            'action' => $action
+        ];
+
+        return $routes[] = $route;
     }
 
-    protected function addRoute($methods, $uri, $action)
+    public function match(Request $request)
     {
-        return $this->routes->add($this->createRoute($methods, $uri, $action));
-    }
-
-    protected function createRoute($methods, $uri, $action)
-    {
-        if ($this->actionReferencesController($action)) {
-            $action = $this->convertToControllerAction($action);
+        foreach ($this->getValidators() as $validator) {
+            if (! $validator->matches($this, $request)) {
+                return false;
+            }
         }
 
-        $route = $this->newRoute(
-            $methods, $this->prefix($uri), $action
-        );
-
-        return $route;
+        return true;
     }
 
-    protected function actionReferencesController($action)
+    public static function getValidators()
     {
-        return is_string($action) || (isset($action['uses']) && is_string($action['uses']));
-    }
-
-    protected function convertToControllerAction($action)
-    {
-        if (is_string($action)) {
-            $action = ['uses' => $action];
+        if (isset(static::$validators)) {
+            return static::$validators;
         }
 
-        $action['controller'] = $action['uses'];
-
-        return $action;
+        return static::$validators = [
+            new UriValidator, new MethodValidator
+        ];
     }
 
-    public function match($methods, $uri, $action = null)
-    {
-        return $this->addRoute(array_map('strtoupper', (array) $methods), $uri, $action);
-    }
 
-    protected function newRoute($methods, $uri, $action)
-    {
-        return (new Route($methods, $uri, $action))
-            ->setRouter($this);
-    }
+
 
 }
