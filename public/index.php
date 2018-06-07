@@ -8,6 +8,6 @@ function __autoload($classname) {
 
 $request = new Request();
 
-print_r($request->getContent());
+print_r($request->all());
 
 ?>

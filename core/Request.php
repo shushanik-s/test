@@ -12,30 +12,22 @@ class Request
     protected $request;
     protected $query;
     public $headers;
-    protected $content;
+    protected $content = [];
     protected $requestUri;
     protected $baseUrl;
-    protected $method;
+    protected $method = null;
     protected $rawData;
     protected static $httpMethodParameterOverride = false;
 
-    public function __construct(array $query = array(), array $request = array(), $content = null)
+    public function __construct()
     {
-        $this->initialize($query, $request, $content);
-    }
-
-    private function initialize(array $query = array(), array $request = array(), $content = null)
-    {
-        $this->request = $_REQUEST;
-        $this->query   = new Parameter($query);
         $this->headers = new Header();
-        $this->content = $content;
-        $this->method  = null;
+        $this->getContent();
     }
 
     public function all()
     {
-        return $this->request;
+        return $this->content;
     }
 
     public function header($key = null, $default = null)
@@ -60,7 +52,7 @@ class Request
                 if ($method = $this->headers->get('X-HTTP-METHOD-OVERRIDE')) {
                     $this->method = strtoupper($method);
                 } elseif (self::$httpMethodParameterOverride) {
-                    $this->method = strtoupper($this->request->get('_method', 'POST'));
+                    $this->method = strtoupper($this->input('_method', 'POST'));
                 }
             }
         }
@@ -75,8 +67,7 @@ class Request
 
     public function input($key = null, $default = null)
     {
-
-        return data_get($_REQUEST, $key, $default);
+        return data_get($this->all(), $key, $default);
     }
 
     public static function normalizeQueryString($qs)
@@ -145,33 +136,31 @@ class Request
         return false;
     }
 
-
-
-    public function getContent()
+    private function getContent()
     {
+        $this->content = array_merge($_REQUEST, $this->content);
         $this->rawData = file_get_contents('php://input');
-        if ($this->header('content-type')[0] == 'application/json') {
-            $this->content = array_merge(json_decode($this->rawData), $this->rawData);
-        } elseif ($this->header('content-type')[0] == 'application/x-www-form-urlencoded') {
-            parse_str(file_get_contents("php://input"), $this->content);
-            $this->content = array_merge(json_decode($this->rawData), $this->rawData);
-        } elseif (strpos($this->header('content-type')[0], 'multipart/form-data') !== false) {
-            if($this->rawData) {
-                $this->content = $this->parseFormData($this->rawData);
-            }
+
+        if ($this->rawData === '') {
+            return;
         }
 
-        return $this->content;
+        if ($this->header('content-type')[0] == 'application/json') {
+            $this->content = array_merge(json_decode($this->rawData, true), $this->content);
+        } elseif ($this->header('content-type')[0] == 'application/x-www-form-urlencoded') {
+            parse_str($this->rawData, $content);
+            $this->content = array_merge($content, $this->content);
+        } elseif (strpos($this->header('content-type')[0], 'multipart/form-data') !== false) {
+            $this->content = array_merge($this->parseFormData($this->rawData), $this->content);
+        }
     }
 
     public function parseFormData($formData)
     {
         $endOfFirstLine = strpos($formData, "\r\n");
         $boundary = substr($formData, 0, $endOfFirstLine);
-        // Split form-data into each entry
         $parts = explode($boundary, $formData);
         $return = [];
-        // Remove first and last (null) entries
         array_shift($parts);
         array_pop($parts);
         foreach ($parts as $part) {
@@ -182,8 +171,6 @@ class Request
             $headerParts = preg_split('#; |\r\n#', $head);
             $key = null;
             $thisHeader = [];
-            // Parse the mini headers,
-            // obtain the key
             foreach ($headerParts as $headerPart) {
                 if (preg_match('#(.*)(=|: )(.*)#', $headerPart, $keyVal)) {
                     if ($keyVal[1] == "name") $key = substr($keyVal[3], 1, -1);
