@@ -4,8 +4,12 @@ class UriValidator
 {
     public function matches($route, Request $request)
     {
-        $path = $request->path() == '/' ? '/' : '/'.$request->path();
+        if (isset($route['regex']) && preg_match($route['regex'], $request->requestUri)) {
+            return true;
+        } elseif ($request->requestUri == $route['uri']) {
+            return true;
+        }
 
-
+        return false;
     }
 }

@@ -8,6 +8,9 @@ function __autoload($classname) {
 
 $request = new Request();
 
-print_r($request->all());
+Router::get("posts/{id}/comments/{name}", "aaa");
+Router::post("posts/{id}", 'aaa');
+
+Router::match($request);
 
 ?>

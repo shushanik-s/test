@@ -2,31 +2,30 @@
 
 class Router
 {
-    public static $methods = ['GET', 'POST', 'PUT', 'DELETE'];
-    protected $routes = [];
-    protected static $validators = [];
+    private static $routes = [];
+    public static $validators = [];
 
     public static function get($uri, $action = null)
     {
-        return self::add('GET', $uri, $action);
+        self::$routes[] = self::add('GET', $uri, $action);
     }
 
     public static function post($uri, $action = null)
     {
-        return self::add('POST', $uri, $action);
+        self::$routes[] = self::add('POST', $uri, $action);
     }
 
     public static function put($uri, $action = null)
     {
-        return self::add('PUT', $uri, $action);
+        self::$routes[] =  self::add('PUT', $uri, $action);
     }
 
     public static function delete($uri, $action = null)
     {
-        return self::add('DELETE', $uri, $action);
+        self::$routes[] = self::add('DELETE', $uri, $action);
     }
 
-    protected static function add($method, $uri, $action)
+    public static function add($method, $uri, $action)
     {
         $route = [
             'uri' => $uri,
@@ -34,18 +33,30 @@ class Router
             'action' => $action
         ];
 
+        if (strpos($uri, '{') !== false) {
+            $route['regex'] = static::generateRegex($uri);
+        }
+
         return $routes[] = $route;
     }
 
-    public function match(Request $request)
+    public static function match(Request $request)
     {
-        foreach ($this->getValidators() as $validator) {
-            if (! $validator->matches($this, $request)) {
-                return false;
+        foreach (self::$routes as $route) {
+            echo "aa";
+            $valid = true;
+            foreach (static::getValidators() as $validator) {
+                echo "aaa";
+                if (!$validator->matches($route, $request)) {
+                    $valid = false;
+                    break;
+                }
+            }
+
+            if($valid) {
+                return $route;
             }
         }
-
-        return true;
     }
 
     public static function getValidators()
@@ -57,6 +68,24 @@ class Router
         return static::$validators = [
             new UriValidator, new MethodValidator
         ];
+    }
+
+    private static function generateRegex($uri) {
+        $segments = explode('/', $uri);
+        $regex = [];
+
+        foreach ($segments as $segment) {
+            $pattern = '~\{(\w+)\}~';
+            if (preg_match($pattern, $segment, $matches)) {
+                $segment = $matches[1];
+                $regex[] ="(?P<$segment>[^\/]+)";
+            } else {
+                $regex[] = $segment;
+            }
+        }
+        $regex = "/^".implode('/', $regex)."$/";
+
+        return $regex;
     }
 
 

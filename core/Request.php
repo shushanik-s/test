@@ -13,7 +13,7 @@ class Request
     protected $query;
     public $headers;
     protected $content = [];
-    protected $requestUri;
+    public $requestUri;
     protected $baseUrl;
     protected $method = null;
     protected $rawData;
@@ -22,6 +22,7 @@ class Request
     public function __construct()
     {
         $this->headers = new Header();
+        $this->requestUri= trim($_SERVER['REQUEST_URI'], '/');
         $this->getContent();
     }
 
@@ -203,9 +204,9 @@ class Request
 
     public function path()
     {
-        $request_uri = explode('/', trim($_SERVER['REQUEST_URI'], '/'));
+        $this->requestUri= explode('/', trim($_SERVER['REQUEST_URI'], '/'));
         $script_name = explode('/', trim($_SERVER['SCRIPT_NAME'], '/'));
-        $parts = array_diff_assoc($request_uri, $script_name);
+        $parts = array_diff_assoc($this->requestUri, $script_name);
         if (empty($parts))
         {
             return '/';
