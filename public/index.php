@@ -5,11 +5,8 @@ function __autoload($classname) {
     include_once($filename);
 }
 
+$base = Database::instance();
 
-$request = new Request();
-
-Router::get("posts/{id}/comments/{name}", 'aaa');
-
-print_r(Router::match($request));
-
+$users = $base->select();
+print_r($users);
 ?>
