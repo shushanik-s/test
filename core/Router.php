@@ -4,6 +4,7 @@ class Router
 {
     private static $routes = [];
     public static $validators = [];
+    public static $methods = ['GET', 'POST', 'PUT', 'DELETE'];
 
     public static function get($uri, $action = null)
     {
@@ -43,10 +44,8 @@ class Router
     public static function match(Request $request)
     {
         foreach (self::$routes as $route) {
-            echo "aa";
             $valid = true;
             foreach (static::getValidators() as $validator) {
-                echo "aaa";
                 if (!$validator->matches($route, $request)) {
                     $valid = false;
                     break;
@@ -61,10 +60,6 @@ class Router
 
     public static function getValidators()
     {
-        if (isset(static::$validators)) {
-            return static::$validators;
-        }
-
         return static::$validators = [
             new UriValidator, new MethodValidator
         ];
@@ -83,7 +78,7 @@ class Router
                 $regex[] = $segment;
             }
         }
-        $regex = "/^".implode('/', $regex)."$/";
+        $regex = "/^".implode('\/', $regex)."$/";
 
         return $regex;
     }
