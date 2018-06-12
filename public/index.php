@@ -6,7 +6,9 @@ function __autoload($classname) {
 }
 
 $base = Database::instance();
+$mysqli = $base->getConnection();
+$q = $base->users->where('id', '>', 1)->select(['id', 'name']);
 
-$users = $base->select();
-print_r($users);
+print_r($q);
+
 ?>

@@ -11,10 +11,10 @@ const DBConfig = [
 class Database
 {
     private $db;
-    private $tables = [];
+    private $tables;
     private $t;
     private static $instance = null;
-
+    private $_connection;
     private $where = [];
     private $join = [];
     private $groupBy = [];
@@ -28,7 +28,7 @@ class Database
 
     public function __construct()
     {
-        $this->db = new PDO("127.0.0.1", DBConfig["name"], DBConfig['charset'],
+        $this->db = new PDO("mysql:dbname=test;host=127.0.0.1",
             DBConfig['user'],
             DBConfig['pass'],
             [
@@ -36,7 +36,21 @@ class Database
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
             ]);
 
+        $this->_connection = new mysqli(DBConfig['host'],DBConfig['user'],DBConfig['pass'],DBConfig['name']);
+
         $this->tables = $this->db->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    public function getConnection() {
+        return $this->_connection;
+    }
+
+    public function __get($name) {
+        if (!in_array($name, $this->tables)) {
+            die("Table not found!");
+        }
+        $this->t = $name;
+        return $this;
     }
 
     public function limit($limit, $offset = null)
@@ -138,9 +152,8 @@ class Database
             foreach ($wheres as $where) {
                 $q .= " {$where[0]}";
                 if(count($where) > 1) {
-                    $q .= " `{$where[1]}`, {$where[2]}, {$where[3]} ";
+                    $q .= " `{$where[1]}` {$where[2]} {$where[3]} ";
                 }
-                $q .= " ON `{$join[3]}`";
             }
         }
 
@@ -167,8 +180,11 @@ class Database
         return $q;
     }
 
-    public function select()
+    public function select($fields = "*")
     {
-        return $this->_select($this->t, $this->where, $this->join, $this->order, "*", $this->groupBy, $this->limit);
+        if (is_array($fields)) {
+            $fields = implode(",", $fields);
+        }
+        return $this->_select($this->t, $this->where, $this->join, $this->order, $fields, $this->groupBy, $this->limit);
     }
 }
